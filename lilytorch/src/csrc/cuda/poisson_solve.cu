@@ -474,6 +474,11 @@ static std::tuple<at::Tensor, int64_t> poisson_solve_mgcg_2d_cuda(
                 "poisson_solve_mgcg_2d: p and f must be contiguous");
     TORCH_CHECK(p.device().is_cuda(), "poisson_solve_mgcg_2d: tensors must be on CUDA");
     TORCH_CHECK(p.dim() == 2 && f.dim() == 2, "poisson_solve_mgcg_2d: p and f must be 2-D");
+    // A cold start (p == 0) takes at least one iteration: the tolerance is an
+    // absolute residual, and with a small enough right-hand side (fine h,
+    // small dt) the early exit below returned the zero guess as the pressure
+    // -- every other step, the next solve doing two steps' worth.
+    const bool cold = (tol >= 0.0) && (p.abs().max().item<double>() == 0.0);
 
     auto opts = p.options();
     const int Nx = (int)f.size(0);
@@ -511,7 +516,7 @@ static std::tuple<at::Tensor, int64_t> poisson_solve_mgcg_2d_cuda(
     r.copy_(b).sub_(Bx);
 
     double r_norm = (tol >= 0.0) ? r.abs().max().item<double>() : 1.0;
-    if (r_norm < tol) {
+    if (r_norm < tol && !(cold && r_norm > 0.0)) {
         gauge_fix(p);
         return std::make_tuple(r, (int64_t)0);
     }
@@ -600,6 +605,11 @@ static std::tuple<at::Tensor, int64_t> poisson_solve_mgcg_3d_cuda(
                 "poisson_solve_mgcg_3d: p and f must be contiguous");
     TORCH_CHECK(p.device().is_cuda(), "poisson_solve_mgcg_3d: tensors must be on CUDA");
     TORCH_CHECK(p.dim() == 3 && f.dim() == 3, "poisson_solve_mgcg_3d: p and f must be 3-D");
+    // A cold start (p == 0) takes at least one iteration: the tolerance is an
+    // absolute residual, and with a small enough right-hand side (fine h,
+    // small dt) the early exit below returned the zero guess as the pressure
+    // -- every other step, the next solve doing two steps' worth.
+    const bool cold = (tol >= 0.0) && (p.abs().max().item<double>() == 0.0);
 
     auto opts = p.options();
     const int Nx = (int)f.size(0);
@@ -636,7 +646,7 @@ static std::tuple<at::Tensor, int64_t> poisson_solve_mgcg_3d_cuda(
     r.copy_(b).sub_(Bx);
 
     double r_norm = (tol >= 0.0) ? r.abs().max().item<double>() : 1.0;
-    if (r_norm < tol) {
+    if (r_norm < tol && !(cold && r_norm > 0.0)) {
         gauge_fix(p);
         return std::make_tuple(r, (int64_t)0);
     }
@@ -729,6 +739,11 @@ static std::tuple<at::Tensor, at::Tensor, int64_t> poisson_solve_rmgcg_2d_cuda(
                 "poisson_solve_rmgcg_2d: p and f must be contiguous");
     TORCH_CHECK(p.device().is_cuda(), "poisson_solve_rmgcg_2d: tensors must be on CUDA");
     TORCH_CHECK(p.dim() == 2 && f.dim() == 2, "poisson_solve_rmgcg_2d: p and f must be 2-D");
+    // A cold start (p == 0) takes at least one iteration: the tolerance is an
+    // absolute residual, and with a small enough right-hand side (fine h,
+    // small dt) the early exit below returned the zero guess as the pressure
+    // -- every other step, the next solve doing two steps' worth.
+    const bool cold = (tol >= 0.0) && (p.abs().max().item<double>() == 0.0);
 
     auto opts = p.options();
     const int Nx = (int)f.size(0);
@@ -781,7 +796,7 @@ static std::tuple<at::Tensor, at::Tensor, int64_t> poisson_solve_rmgcg_2d_cuda(
     int64_t niter = 0;
 
     double r_norm = (tol >= 0.0) ? r.abs().max().item<double>() : 1.0;
-    if (r_norm < tol) {
+    if (r_norm < tol && !(cold && r_norm > 0.0)) {
         gauge_fix(p);
         return std::make_tuple(r, D, niter);
     }
@@ -869,6 +884,11 @@ static std::tuple<at::Tensor, at::Tensor, int64_t> poisson_solve_rmgcg_3d_cuda(
                 "poisson_solve_rmgcg_3d: p and f must be contiguous");
     TORCH_CHECK(p.device().is_cuda(), "poisson_solve_rmgcg_3d: tensors must be on CUDA");
     TORCH_CHECK(p.dim() == 3 && f.dim() == 3, "poisson_solve_rmgcg_3d: p and f must be 3-D");
+    // A cold start (p == 0) takes at least one iteration: the tolerance is an
+    // absolute residual, and with a small enough right-hand side (fine h,
+    // small dt) the early exit below returned the zero guess as the pressure
+    // -- every other step, the next solve doing two steps' worth.
+    const bool cold = (tol >= 0.0) && (p.abs().max().item<double>() == 0.0);
 
     auto opts = p.options();
     const int Nx = (int)f.size(0);
@@ -924,7 +944,7 @@ static std::tuple<at::Tensor, at::Tensor, int64_t> poisson_solve_rmgcg_3d_cuda(
     int64_t niter = 0;
 
     double r_norm = (tol >= 0.0) ? r.abs().max().item<double>() : 1.0;
-    if (r_norm < tol) {
+    if (r_norm < tol && !(cold && r_norm > 0.0)) {
         gauge_fix(p);
         return std::make_tuple(r, D, niter);
     }

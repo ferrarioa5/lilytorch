@@ -491,6 +491,7 @@ class _MultigridPoissonSolver:
         mask = self._active_mask(cfaces, b.dtype)
         b = self._project_rhs(b, mask)
 
+        x_cold = not bool(x.abs().max())
         # Initial residual: r = b - B(x)
         r = b - self._apply_op_spd(x, cfaces)
 
@@ -500,7 +501,8 @@ class _MultigridPoissonSolver:
             self._deflate_init(x, r, recycle, inner)
 
         r_norm = self._convergence_norm(r)
-        if r_norm < self.tol:
+        # a cold start takes at least one iteration (see poisson_solve.cu)
+        if r_norm < self.tol and not (x_cold and r_norm > 0):
             _gauge_fix(x)
             self._last_niter = 0
             self._last_resid = r_norm
@@ -1091,9 +1093,11 @@ class PoissonSolver(_MultigridPoissonSolver):
         inner = _inner(b.ndim)
         mask = self._active_mask(cfaces, b.dtype)
         b = self._project_rhs(b, mask)
+        x_cold = not bool(x.abs().max())
         r = b - self._apply_op_spd(x, cfaces)
         r_norm = self._convergence_norm(r)
-        if r_norm < self.tol:
+        # a cold start takes at least one iteration (see poisson_solve.cu)
+        if r_norm < self.tol and not (x_cold and r_norm > 0):
             _gauge_fix(x)
             self._last_niter = 0
             self._last_resid = r_norm
